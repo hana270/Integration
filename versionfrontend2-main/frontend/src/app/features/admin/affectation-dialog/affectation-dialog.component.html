@@ -1,0 +1,150 @@
+<h2 mat-dialog-title>Affecter un installateur</h2>
+
+<mat-dialog-content>
+  <!-- Message d'erreur -->
+  <div *ngIf="errorMessage" class="alert alert-danger">
+    {{errorMessage}}
+  </div>
+
+  <!-- Chargement -->
+  <div *ngIf="isLoading" class="text-center py-3">
+    <mat-spinner diameter="40"></mat-spinner>
+    <p>Chargement des installateurs...</p>
+  </div>
+
+  <!-- Étape 1 : Sélection des installateurs -->
+  <div *ngIf="!isLoading && currentStep === 1">
+    <div class="row mb-3">
+      <div class="col-md-6">
+        <strong>Commande:</strong> {{data.commande.numeroCommande}}
+      </div>
+      <div class="col-md-6">
+        <strong>Client:</strong> {{data.commande.emailClient}}
+      </div>
+    </div>
+
+    <mat-form-field appearance="fill" class="w-100 mb-3">
+      <mat-label>Installateurs</mat-label>
+      <mat-select [(ngModel)]="selectedInstallateurs" multiple required>
+        <cdk-virtual-scroll-viewport itemSize="60" style="height: 300px">
+          <mat-option *cdkVirtualFor="let installateur of installateurs" [value]="installateur">
+            <div class="installer-option">
+              <img [src]="installateur.profileImage" 
+                   alt="Profile" 
+                   class="installer-image"
+                   (error)="installateur.profileImage = 'assets/img/installateur/inconnueProfilephoto.jpg'">
+              <div class="installer-info">
+                <div>{{installateur.username}}</div>
+                <small class="text-muted">{{installateur.email}}</small>
+              </div>
+            </div>
+          </mat-option>
+        </cdk-virtual-scroll-viewport>
+      </mat-select>
+      <mat-error *ngIf="!selectedInstallateurs || selectedInstallateurs.length === 0">
+        Veuillez sélectionner au moins un installateur
+      </mat-error>
+    </mat-form-field>
+
+    <mat-form-field appearance="fill" class="w-100">
+      <mat-label>Date d'installation</mat-label>
+      <input matInput [matDatepicker]="picker" [(ngModel)]="selectedDate" 
+             [min]="minDate" name="installationDate" required>
+      <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
+      <mat-datepicker #picker></mat-datepicker>
+      <mat-error *ngIf="!selectedDate">Veuillez sélectionner une date</mat-error>
+    </mat-form-field>
+
+    <div *ngIf="selectedInstallateurs && selectedInstallateurs.length > 0" class="mt-3">
+      <h4>Installateurs sélectionnés ({{selectedInstallateurs.length}})</h4>
+      <div class="selected-installers-container">
+        <div *ngFor="let installateur of selectedInstallateurs" class="selected-installer">
+          <img [src]="installateur.profileImage" 
+               alt="Profile" 
+               class="selected-installer-image"
+               (error)="installateur.profileImage = 'assets/img/installateur/inconnueProfilephoto.jpg'">
+          <div class="selected-installer-info">
+            <div> {{installateur.username}}</div>
+            <small class="text-muted">{{installateur.email}}</small>
+          </div>
+        </div>
+      </div>
+
+      <h4 class="mt-3">Disponibilités</h4>
+      <mat-chip-list>
+        <mat-chip *ngFor="let date of disponibilites" 
+                  [selected]="isSameDate(date, selectedDate)"
+                  (click)="selectedDate = date">
+          {{date | date:'dd/MM/yyyy'}}
+        </mat-chip>
+      </mat-chip-list>
+      <p *ngIf="disponibilites.length === 0" class="text-muted">Aucune disponibilité enregistrée</p>
+    </div>
+  </div>
+
+  <!-- Étape 2 : Détails de la commande -->
+  <div *ngIf="!isLoading && currentStep === 2" class="command-details">
+    <h3>Récapitulatif de la commande</h3>
+    
+    <div class="details-section">
+      <h4>Informations de livraison</h4>
+      <div class="detail-row">
+        <span class="detail-label">Adresse:</span>
+        <span>{{commandeDetails.adresseLivraison}}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Code postal:</span>
+        <span>{{commandeDetails.codePostal}}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Ville:</span>
+        <span>{{commandeDetails.ville}}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Pays:</span>
+        <span>{{commandeDetails.pays}}</span>
+      </div>
+    </div>
+
+    <div class="details-section">
+      <h4>Installateurs affectés</h4>
+      <div *ngFor="let installateur of selectedInstallateurs" class="selected-installer">
+        <img [src]="installateur.profileImage" 
+             alt="Profile" 
+             class="selected-installer-image"
+             (error)="installateur.profileImage = 'assets/img/installateur/inconnueProfilephoto.jpg'">
+        <div class="selected-installer-info">
+          <div>{{installateur.username}}</div>
+          <small class="text-muted">{{installateur.email}}</small>
+        </div>
+      </div>
+    </div>
+
+    <div class="details-section">
+      <h4>Date d'installation</h4>
+      <div class="detail-row">
+        <span class="detail-label">Date sélectionnée:</span>
+        <span>{{selectedDate | date:'dd/MM/yyyy'}}</span>
+      </div>
+    </div>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="onCancel()">Annuler</button>
+  
+  <!-- Bouton Précédent -->
+  <button *ngIf="currentStep === 2" mat-button (click)="currentStep = 1">
+    Précédent
+  </button>
+  
+  <!-- Bouton Suivant/Confirmer -->
+  <button mat-raised-button 
+          color="primary" 
+          (click)="nextStep()"
+          [disabled]="currentStep === 1 ? 
+                    (!selectedInstallateurs || selectedInstallateurs.length === 0 || !selectedDate || isLoading) : 
+                    isLoading">
+    {{currentStep === 1 ? 'Suivant' : 'Confirmer'}}
+  </button>
+</mat-dialog-actions>

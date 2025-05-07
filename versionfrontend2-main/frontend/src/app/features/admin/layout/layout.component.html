@@ -1,0 +1,129 @@
+<div class="layout-container" (click)="closeSidebarOnMobile($event)">
+  <!-- Sidebar -->
+  <aside class="sidebar" [ngClass]="{'collapsed': !isSidebarOpen, 'mobile-open': isMobile && isSidebarOpen}">
+    <div class="sidebar-header">
+      <h1 class="logo">
+        <i class="material-icons">water_drop</i>
+        <span class="brand-text">Aqua Trésor</span>
+      </h1>
+      <button class="toggle-btn" (click)="toggleSidebar()">
+        <i class="material-icons">{{ isMobile ? 'close' : (isSidebarOpen ? 'chevron_left' : 'menu') }}</i>
+      </button>
+    </div>
+    
+    <ul class="sidebar-menu">
+      <li>
+        <a routerLink="/admin/dashboard" routerLinkActive="active">
+          <i class="material-icons">dashboard</i>
+          <span>Dashboard</span>
+        </a>
+      </li>
+      <li>
+        <a routerLink="/admin/List-users" routerLinkActive="active">
+          <i class="material-icons">people</i>
+          <span>Users</span>
+        </a>
+      </li>
+      <li>
+        <a routerLink="/admin/list-categories" routerLinkActive="active">
+          <i class="material-icons">category</i>
+          <span>Liste Categories</span>
+        </a>
+      </li>
+      <li>
+        <a routerLink="/admin/bassin" routerLinkActive="active">
+          <i class="material-icons">pool</i>
+          <span>Liste Bassins</span>
+        </a>
+      </li>
+      <li>
+        <a routerLink="/admin/promotions" routerLinkActive="active">
+          <i class="material-icons">local_offer</i>
+          <span>Gestion Promotions</span>
+        </a>
+      </li>
+      <li>
+        <a routerLink="/admin/stocks" routerLinkActive="active">
+          <i class="material-icons">inventory</i>
+          <span>Gestion Stocks</span>
+        </a>
+      </li>
+      <li>
+        <a routerLink="/admin/avis" routerLinkActive="active">
+            <i class="material-icons" style="color: #FFA000;">rate_review</i>
+            <span>Avis</span>
+        </a>
+    </li>
+    <li>
+      <a routerLink="/admin/listeCommandes">
+        <i class="fas fa-boxes"></i>
+        <span>Gestion Commandes</span>
+      </a>
+    </li>
+    </ul>
+    
+    <div class="section-title">Account Pages</div>
+    
+    <ul class="sidebar-menu">
+      <li>
+        <a routerLink="/admin/edit-profile" routerLinkActive="active">
+          <i class="material-icons">person</i>
+          <span>Profile</span>
+        </a>
+      </li>
+      <li>
+        <a routerLink="/admin/send-installer-invitation" routerLinkActive="active">
+          <i class="material-icons">build</i>
+          <span>Installateur</span>
+        </a>
+      </li>
+    </ul>
+    
+    <div class="sidebar-footer">
+      <button class="logout-btn" (click)="logout()">
+        <i class="material-icons">logout</i>
+        <span>Déconnexion</span>
+      </button>
+    </div>
+  </aside>
+  
+  <!-- Navbar -->
+  <nav class="navbar" [ngClass]="{'collapsed': !isSidebarOpen}">
+    <div class="navbar-left">
+      <button class="toggle-btn" (click)="toggleSidebar()">
+        <i class="material-icons">menu</i>
+      </button>
+      <h2 class="page-title">{{ pageTitle }}</h2>
+    </div>
+    
+    <div class="navbar-right">
+      <div class="search-container" [ngClass]="{'active': isSearchActive}">
+        <input 
+          type="text" 
+          class="search-input" 
+          placeholder="Rechercher..." 
+          [(ngModel)]="searchQuery" 
+          (input)="onSearchInput()"
+          [ngStyle]="{'display': isSearchActive ? 'block' : 'none'}"
+        >
+        <button class="search-btn" (click)="toggleSearch()">
+          <i class="material-icons">{{ isSearchActive ? 'close' : 'search' }}</i>
+        </button>
+      </div>
+      
+      <!-- Ajouter le composant de notification ici -->
+      <app-notifications></app-notifications>
+      
+      <button class="user-btn">
+        <i class="material-icons">account_circle</i>
+      </button>
+    </div>
+  </nav>
+  
+  <!-- Main Content -->
+  <main class="main-content" [ngClass]="{'collapsed': !isSidebarOpen}">
+    <div class="content">
+      <ng-content></ng-content>
+    </div>
+  </main>
+</div>
