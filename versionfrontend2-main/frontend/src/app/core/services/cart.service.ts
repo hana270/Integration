@@ -97,9 +97,7 @@ export class CartService {
     this.destroy$.next();
     this.destroy$.complete();
   }
-  private get authService(): AuthService {
-    return this.injector.get(AuthService);
-  }
+
   // Méthode pour initialiser un sessionId persistant
   private initializeSessionId(): void {
     let sessionId = localStorage.getItem(this.SESSION_ID_KEY);

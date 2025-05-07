@@ -99,6 +99,7 @@ showFiltersMobile: boolean = false;
   ngOnInit(): void {
     this.loadData();
     
+    this.setupCartSubscription();
     this.cartSubscription = this.cartService.panier$.pipe(
       takeUntil(this.destroy$),
       distinctUntilChanged((prev, curr) => 
@@ -126,6 +127,18 @@ showFiltersMobile: boolean = false;
   }
 
   
+  private setupCartSubscription(): void {
+    this.cartSubscription = this.cartService.panier$
+      .pipe(
+        takeUntil(this.destroy$),
+        debounceTime(100),
+        distinctUntilChanged((prev, curr) => 
+          JSON.stringify(prev?.items) === JSON.stringify(curr?.items))
+      )
+      .subscribe(panier => {
+        // Mettre à jour les informations du panier si nécessaire
+      });
+  }
 
   onCategoryChange(event: Event): void {
     const checkbox = event.target as HTMLInputElement;
@@ -414,11 +427,8 @@ showFiltersMobile: boolean = false;
     this.showOnlyPromotions = false;
     this.showAvailable = true;
     this.showOnOrder = true;
-  
-    // Réinitialiser les sélections de catégories
     this.categories.forEach(cat => cat.selected = false);
-    this.selectedCategories = [];
-  
+    
     this.applyFilters();
     this.toastService.showInfo('Filtres réinitialisés');
   }
@@ -506,52 +516,34 @@ addToFavorites(bassin: Bassin, event: Event): void {
 
 // Méthode pour appliquer les filtres (version améliorée)
 applyFilters(): void {
+  // Filtrer par prix et disponibilité
+  this.filteredBassins = this.bassins.filter(bassin => {
+    const price = bassin.promotionActive ? (bassin.prixPromo || bassin.prix) : bassin.prix;
+    const priceMatch = price >= this.minPrice && price <= this.selectedPrice;
+    
+    const availabilityMatch = 
+      (this.showAvailable && bassin.statut === 'DISPONIBLE') || 
+      (this.showOnOrder && bassin.statut === 'SUR_COMMANDE');
+    
+    const promotionMatch = !this.showOnlyPromotions || bassin.promotionActive;
+    
+    const categoryMatch = this.categories.length === 0 || 
+      this.categories.every(cat => !cat.selected) ||
+      (bassin.categorie && this.categories.some(
+        cat => cat.selected && cat.idCategorie === bassin.categorie?.idCategorie
+      ));
+    
+    return priceMatch && availabilityMatch && promotionMatch && categoryMatch;
+  });
 
-
-  this.selectedCategories = this.categories
-  .filter(cat => cat.selected)
-  .map(cat => cat.idCategorie);
-
-this.filteredBassins = this.bassins.filter(bassin => {
-  //  // Filtrer par prix
-    const price = bassin.promotionActive ? bassin.prixPromo : bassin.prix;
-    if (price === undefined || price < this.minPrice || price > this.selectedPrice) {
-      return false;
-    }
-
-    // Filtrer par statut
-    const isAvailable = this.showAvailable && bassin.statut === 'DISPONIBLE';
-    const isOnOrder = this.showOnOrder && bassin.statut === 'SUR_COMMANDE';
-    if (!isAvailable && !isOnOrder) {
-      return false;
-    }
-
-    // Filtrer par promotion
-    if (this.showOnlyPromotions && !bassin.promotionActive) {
-      return false;
-    }
-
-    // Filtrer par catégorie
-    if (this.selectedCategories.length > 0 && 
-        bassin.categorie && 
-        !this.selectedCategories.includes(bassin.categorie.idCategorie)) {
-      return false;
-    }
- // Filtrer par catégorie
- if (this.selectedCategories.length > 0 && 
-  bassin.categorie && 
-  !this.selectedCategories.includes(bassin.categorie.idCategorie)) {
-return false;
-}
-
-return true;
-});
-
-  this.currentPage = 1; // Réinitialiser à la première page
-  this.updatePagination();
-
+  // Trier les résultats
   this.sortBassins();
+  
+  // Mettre à jour la pagination
+  this.currentPage = 1;
+  this.updatePagination();
 }
+
 
 // Méthode pour trier les bassins
 sortBassins(): void {

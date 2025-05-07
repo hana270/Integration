@@ -275,7 +275,9 @@ export class BassinDetailComponent implements OnInit {
   stableWidth: string = '41.7%';
 
   private updateTimeout: any;
-
+// Propriétés pour la gestion du QR Code
+showQRModal: boolean = false;
+isGeneratingQR: boolean = false;
   constructor(
     private route: ActivatedRoute,
     private cartService: CartService,
@@ -284,7 +286,7 @@ export class BassinDetailComponent implements OnInit {
     private cdr: ChangeDetectorRef,
     private ngZone: NgZone,
     private arService: ArService,
-    public authService:AuthService,
+    public authService: AuthService,
     private avisService: AvisService,
     private jwtHelper: JwtHelperService,
     @Inject(forwardRef(() => AuthStateService))
@@ -309,8 +311,8 @@ export class BassinDetailComponent implements OnInit {
 
   ngOnInit(): void {
     console.log('Connecté:', this.authService.isLoggedIn);
-  console.log('Est client:', this.authService.isClient());
-  
+    console.log('Est client:', this.authService.isClient());
+
     this.cartService.forceRefreshCart().subscribe({
       next: (cart) => console.log('Panier rafraîchi:', cart),
       error: (err) =>
@@ -750,9 +752,7 @@ export class BassinDetailComponent implements OnInit {
     // Pour les bassins standards
     if (item.bassin?.imagesBassin?.[0]?.imagePath) {
       try {
-        return `${
-          this.bassinService.getApiUrl()
-        }/imagesBassin/getFS/${encodeURIComponent(
+        return `${this.bassinService.getApiUrl()}/imagesBassin/getFS/${encodeURIComponent(
           item.bassin.imagesBassin[0].imagePath
         )}`;
       } catch (e) {
@@ -1070,141 +1070,166 @@ export class BassinDetailComponent implements OnInit {
     avis.showHistorique = !avis.showHistorique;
   }
 
-// Méthode pour ajouter un bassin standard
-async addToCart(): Promise<void> {
-  if (!this.bassin) {
-    await Swal.fire({
-      title: 'Erreur',
-      text: 'Bassin non disponible',
-      icon: 'error',
-      confirmButtonText: 'OK'
-    });
-    return;
-  }
-
-  // Vérification du stock
-  if (this.bassin.statut === 'DISPONIBLE' && this.quantity > this.bassin.stock) {
-    await Swal.fire({
-      title: 'Stock insuffisant',
-      html: `Il ne reste que <strong>${this.bassin.stock}</strong> unité(s) disponible(s)`,
-      icon: 'warning',
-      confirmButtonText: 'OK'
-    });
-    return;
-  }
-
-  this.isLoading = true;
-
-  try {
-    await lastValueFrom(
-      this.cartService.addBassinToCart(
-        this.bassin,
-        this.quantity,
-        this.bassin.promotionActive ? this.bassin.promotion : undefined
-      ).pipe(timeout(3000))
-    );
-
-    const result = await Swal.fire({
-      title: 'Parfait !',
-      html: `${this.quantity} bassin(s) <strong>${this.bassin.nomBassin}</strong> ajouté(s) au panier`,
-      icon: 'success',
-      showConfirmButton: true,
-      confirmButtonText: 'Aller au panier',
-      showCancelButton: true,
-      cancelButtonText: 'Continuer shopping',
-      confirmButtonColor: '#3085d6',
-      cancelButtonColor: '#aaa',
-      timer: 5000
-    });
-
-    if (result.isConfirmed) {
-      this.router.navigate(['/cart']);
+  // Méthode pour ajouter un bassin standard
+  async addToCart(): Promise<void> {
+    if (!this.bassin) {
+      await Swal.fire({
+        title: 'Erreur',
+        text: 'Bassin non disponible',
+        icon: 'error',
+        confirmButtonText: 'OK',
+      });
+      return;
     }
-  } catch (error) {
-    console.error('Erreur:', error);
-    await Swal.fire({
-      title: 'Désolé',
-      text: 'Nous n\'avons pas pu ajouter ce bassin à votre panier',
-      icon: 'error',
-      confirmButtonText: 'OK'
-    });
-  } finally {
-    this.isLoading = false;
-    this.cdr.detectChanges();
-  }
-}
 
-// Méthode pour ajouter un bassin personnalisé
-async addCustomToCart(): Promise<void> {
-  if (!this.bassin || !this.customizationSummary || this.isLoading) {
-    return;
-  }
-
-  this.isLoading = true;
-
-  try {
-    const accessoiresPrice = this.customizationSummary.accessoires?.reduce(
-      (sum: number, acc: any) => sum + (acc.prixAccessoire || 0), 
-      0
-    ) || 0;
-
-    const prixEstime = this.bassin.prix 
-      + (this.prixMateriaux[this.customizationSummary.materiau] || 0)
-      + (this.prixDimensions[this.customizationSummary.dimension] || 0)
-      + accessoiresPrice;
-
-    const request: PanierItemRequest = {
-      bassinId: this.bassin.idBassin,
-      quantity: this.quantity,
-      isCustomized: true,
-      nomBassin: this.bassin.nomBassin,
-      imageUrl: this.bassin.imagesBassin?.[0]?.imagePath || 'assets/default-image.webp',
-      status: 'SUR_COMMANDE',
-      materiauSelectionne: this.customizationSummary.materiau,
-      dimensionSelectionnee: this.customizationSummary.dimension,
-      couleurSelectionnee: this.customizationSummary.couleur,
-      accessoireIds: this.customizationSummary.accessoires?.map((a: any) => a.idAccessoire) || [],
-      prixOriginal: this.bassin.prix,
-      prixMateriau: this.prixMateriaux[this.customizationSummary.materiau] || 0,
-      prixDimension: this.prixDimensions[this.customizationSummary.dimension] || 0,
-      prixAccessoires: accessoiresPrice,
-      prixEstime: prixEstime,
-      dureeFabrication: this.customizationSummary.dureeFabrication || 'À déterminer'
-    };
-
-    await lastValueFrom(this.cartService.addItemToCart(request).pipe(timeout(3000)));
-
-    const result = await Swal.fire({
-      title: 'Votre création est prête !',
-      html: this.getCustomizationSuccessHtml(this.customizationSummary, accessoiresPrice, prixEstime),
-      icon: 'success',
-      showConfirmButton: true,
-      confirmButtonText: 'Finaliser ma commande',
-      showCancelButton: true,
-      cancelButtonText: 'Ajouter un autre bassin',
-      confirmButtonColor: '#3085d6',
-      cancelButtonColor: '#aaa',
-      width: '800px'
-    });
-
-    if (result.isConfirmed) {
-      this.router.navigate(['/panier']);
+    // Vérification du stock
+    if (
+      this.bassin.statut === 'DISPONIBLE' &&
+      this.quantity > this.bassin.stock
+    ) {
+      await Swal.fire({
+        title: 'Stock insuffisant',
+        html: `Il ne reste que <strong>${this.bassin.stock}</strong> unité(s) disponible(s)`,
+        icon: 'warning',
+        confirmButtonText: 'OK',
+      });
+      return;
     }
-  } catch (error) {
-    console.error('Erreur:', error);
-    await Swal.fire({
-      title: 'Oups !',
-      text: 'Une erreur est survenue lors de l\'enregistrement de votre bassin personnalisé',
-      icon: 'error',
-      confirmButtonText: 'OK'
-    });
-  } finally {
-    this.isLoading = false;
-    this.cdr.detectChanges();
+
+    this.isLoading = true;
+
+    try {
+      await lastValueFrom(
+        this.cartService
+          .addBassinToCart(
+            this.bassin,
+            this.quantity,
+            this.bassin.promotionActive ? this.bassin.promotion : undefined
+          )
+          .pipe(timeout(3000))
+      );
+
+      const result = await Swal.fire({
+        title: 'Parfait !',
+        html: `${this.quantity} bassin(s) <strong>${this.bassin.nomBassin}</strong> ajouté(s) au panier`,
+        icon: 'success',
+        showConfirmButton: true,
+        confirmButtonText: 'Aller au panier',
+        showCancelButton: true,
+        cancelButtonText: 'Continuer shopping',
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#aaa',
+        timer: 5000,
+      });
+
+      if (result.isConfirmed) {
+        this.router.navigate(['/cart']);
+      }
+    } catch (error) {
+      console.error('Erreur:', error);
+      await Swal.fire({
+        title: 'Désolé',
+        text: "Nous n'avons pas pu ajouter ce bassin à votre panier",
+        icon: 'error',
+        confirmButtonText: 'OK',
+      });
+    } finally {
+      this.isLoading = false;
+      this.cdr.detectChanges();
+    }
   }
-}
-// Méthode helper pour générer le HTML
-private getCustomizationSuccessHtml(customization: any, accessoiresPrice: number, prixEstime: number): string {
+
+  // Méthode pour ajouter un bassin personnalisé
+  async addCustomToCart(): Promise<void> {
+    if (!this.bassin || !this.customizationSummary || this.isLoading) {
+      return;
+    }
+
+    this.isLoading = true;
+
+    try {
+      const accessoiresPrice =
+        this.customizationSummary.accessoires?.reduce(
+          (sum: number, acc: any) => sum + (acc.prixAccessoire || 0),
+          0
+        ) || 0;
+
+      const prixEstime =
+        this.bassin.prix +
+        (this.prixMateriaux[this.customizationSummary.materiau] || 0) +
+        (this.prixDimensions[this.customizationSummary.dimension] || 0) +
+        accessoiresPrice;
+
+      const request: PanierItemRequest = {
+        bassinId: this.bassin.idBassin,
+        quantity: this.quantity,
+        isCustomized: true,
+        nomBassin: this.bassin.nomBassin,
+        imageUrl:
+          this.bassin.imagesBassin?.[0]?.imagePath ||
+          'assets/default-image.webp',
+        status: 'SUR_COMMANDE',
+        materiauSelectionne: this.customizationSummary.materiau,
+        dimensionSelectionnee: this.customizationSummary.dimension,
+        couleurSelectionnee: this.customizationSummary.couleur,
+        accessoireIds:
+          this.customizationSummary.accessoires?.map(
+            (a: any) => a.idAccessoire
+          ) || [],
+        prixOriginal: this.bassin.prix,
+        prixMateriau:
+          this.prixMateriaux[this.customizationSummary.materiau] || 0,
+        prixDimension:
+          this.prixDimensions[this.customizationSummary.dimension] || 0,
+        prixAccessoires: accessoiresPrice,
+        prixEstime: prixEstime,
+        dureeFabrication:
+          this.customizationSummary.dureeFabrication || 'À déterminer',
+      };
+
+      await lastValueFrom(
+        this.cartService.addItemToCart(request).pipe(timeout(3000))
+      );
+
+      const result = await Swal.fire({
+        title: 'Votre création est prête !',
+        html: this.getCustomizationSuccessHtml(
+          this.customizationSummary,
+          accessoiresPrice,
+          prixEstime
+        ),
+        icon: 'success',
+        showConfirmButton: true,
+        confirmButtonText: 'Finaliser ma commande',
+        showCancelButton: true,
+        cancelButtonText: 'Ajouter un autre bassin',
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#aaa',
+        width: '800px',
+      });
+
+      if (result.isConfirmed) {
+        this.router.navigate(['/panier']);
+      }
+    } catch (error) {
+      console.error('Erreur:', error);
+      await Swal.fire({
+        title: 'Oups !',
+        text: "Une erreur est survenue lors de l'enregistrement de votre bassin personnalisé",
+        icon: 'error',
+        confirmButtonText: 'OK',
+      });
+    } finally {
+      this.isLoading = false;
+      this.cdr.detectChanges();
+    }
+  }
+  // Méthode helper pour générer le HTML
+  private getCustomizationSuccessHtml(
+    customization: any,
+    accessoiresPrice: number,
+    prixEstime: number
+  ): string {
     return `
         <div style="text-align: left;">
             <p>Votre bassin personnalisé a été ajouté au panier</p>
@@ -1213,13 +1238,16 @@ private getCustomizationSuccessHtml(customization: any, accessoiresPrice: number
                 <p>- Matériau: ${customization.materiau}</p>
                 <p>- Dimensions: ${customization.dimension}</p>
                 <p>- Couleur: ${customization.couleur}</p>
-                ${accessoiresPrice > 0 ? 
-                    `<p>- Accessoires: ${customization.accessoires?.length} sélectionnés</p>` : ''}
+                ${
+                  accessoiresPrice > 0
+                    ? `<p>- Accessoires: ${customization.accessoires?.length} sélectionnés</p>`
+                    : ''
+                }
                 <p style="margin-top: 10px;"><strong>Prix total:</strong> ${prixEstime} TND</p>
             </div>
         </div>
     `;
-}
+  }
 
   increaseQuantity(): void {
     this.quantity++;
@@ -1365,39 +1393,6 @@ private getCustomizationSuccessHtml(customization: any, accessoiresPrice: number
     }
   }
 
-  generateQRCode(modelUrl: string): void {
-    console.log('Génération du QR Code pour:', modelUrl);
-    const sceneViewerUrl = `https://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(
-      modelUrl
-    )}&mode=ar_only`;
-
-    QRCode.toDataURL(
-      sceneViewerUrl,
-      {
-        errorCorrectionLevel: 'H',
-        margin: 2,
-        width: 256,
-      },
-      (err, url) => {
-        this.isLoading = false;
-        if (err) {
-          console.error('Error generating QR code:', err);
-          Swal.fire('Erreur', 'Impossible de générer le QR Code.', 'error');
-          return;
-        }
-        console.log('QR Code généré:', url);
-        this.qrCodeImageUrl = url;
-        this.cdr.detectChanges();
-      }
-    );
-  }
-
-  closeQRModal(): void {
-    console.log('Fermeture de la modale');
-    this.qrCodeImageUrl = null;
-    this.isLoading = false;
-  }
-
   // Méthodes de contrôle AR (identique au premier composant)
   zoomIn(): void {
     if (this.modelViewer) {
@@ -1457,7 +1452,6 @@ private getCustomizationSuccessHtml(customization: any, accessoiresPrice: number
     }
   }
 
-
   getRatingLabel(note: number): string {
     switch (note) {
       case 1:
@@ -1510,7 +1504,9 @@ private getCustomizationSuccessHtml(customization: any, accessoiresPrice: number
     if (bassin.imagesBassin && bassin.imagesBassin.length > 0) {
       this.imagePreviews = bassin.imagesBassin.map(
         (img) =>
-          `${this.bassinService.getApiUrl()}/imagesBassin/getFS/${img.imagePath}`
+          `${this.bassinService.getApiUrl()}/imagesBassin/getFS/${
+            img.imagePath
+          }`
       );
       this.selectedImage = this.imagePreviews[0];
     } else {
@@ -1979,9 +1975,7 @@ private getCustomizationSuccessHtml(customization: any, accessoiresPrice: number
 
     // Priorité 2: Image du bassin de base
     if (this.bassin?.imagesBassin?.[0]?.imagePath) {
-      return `${
-        this.bassinService.getApiUrl()
-      }/imagesBassin/getFS/${encodeURIComponent(
+      return `${this.bassinService.getApiUrl()}/imagesBassin/getFS/${encodeURIComponent(
         this.bassin.imagesBassin[0].imagePath
       )}`;
     }
@@ -1995,11 +1989,200 @@ private getCustomizationSuccessHtml(customization: any, accessoiresPrice: number
     if (this.customizationSummary?.dureeFabrication) {
       return `${this.customizationSummary.dureeFabrication} jours`;
     }
-    
+
     if (this.bassin?.dureeFabricationDisplay) {
       return this.bassin.dureeFabricationDisplay;
     }
-    
+
     return '3-15 jours';
+  }
+
+  /********Code 3D image */
+
+  onModelLoad(): void {
+    this.isLoading = false; // Masquer le loader après le chargement
+  }
+
+  private launchAndroidAR(modelUrl: string): void {
+    const sceneViewerUrl = `intent://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(
+      modelUrl
+    )}&mode=ar_only#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;S.browser_fallback_url=${encodeURIComponent(
+      window.location.href
+    )};end;`;
+    window.location.href = sceneViewerUrl;
+
+    // Fallback après 500ms si l'application n'est pas installée
+    setTimeout(() => {
+      if (!document.hidden) {
+        window.location.href = `https://arvr.google.com/scene-viewer?file=${encodeURIComponent(
+          modelUrl
+        )}`;
+      }
+    }, 500);
+  }
+
+  private launchIOSAR(modelUrl: string): void {
+    // Convertir en USDZ pour iOS
+    const usdzUrl = modelUrl.replace(/\.(glb|gltf)$/i, '.usdz');
+
+    // Essayer plusieurs méthodes d'ouverture
+    const quickLookUrl = `https://usdzviewer.app/launch?url=${encodeURIComponent(
+      usdzUrl
+    )}`;
+
+    // Méthode 1: Ouverture directe
+    const opened = window.open(quickLookUrl, '_blank');
+
+    // Fallback après 300ms
+    setTimeout(() => {
+      if (!opened || opened.closed || typeof opened.closed === 'undefined') {
+        // Méthode 2: Redirection vers USDZ Viewer
+        window.location.href = `https://usdzviewer.app/launch?url=${encodeURIComponent(
+          usdzUrl
+        )}`;
+      }
+    }, 300);
+  }
+
+  private launchMacOSAR(modelUrl: string): void {
+    // Pour macOS, nous pouvons utiliser WebXR ou proposer le téléchargement
+    if ('xr' in navigator) {
+      // Vérifier la compatibilité WebXR
+      navigator.xr?.isSessionSupported('immersive-ar').then((supported) => {
+        if (supported) {
+          this.startWebXR(modelUrl);
+        } else {
+          this.generateQRCode(modelUrl);
+        }
+      });
+    } else {
+      this.generateQRCode(modelUrl);
+    }
+  }
+
+  private startWebXR(modelUrl: string): void {
+    console.log('Starting WebXR AR session');
+    this.isARActive = true;
+    this.cdr.detectChanges();
+
+    // Ici vous devriez implémenter la logique WebXR
+    // C'est un exemple basique
+    const modelViewer = this.modelViewer;
+    if (modelViewer) {
+      modelViewer.activateAR();
+    }
+  }
+
+  // Méthode pour faire pivoter l'objet
+  rotateModel(degrees: number): void {
+    if (this.modelViewer) {
+      const currentRotation = this.modelViewer.getAttribute('camera-orbit');
+      if (currentRotation) {
+        const [angle, rest] = currentRotation.split(' ');
+        const newRotation = `${parseFloat(angle) + degrees}deg ${rest}`;
+        this.modelViewer.setAttribute('camera-orbit', newRotation);
+      }
+    }
+  }
+
+  // Méthode pour réinitialiser la position de l'objet
+  resetModel(): void {
+    if (this.modelViewer) {
+      this.modelViewer.setAttribute('camera-orbit', '0deg 75deg 105%');
+    }
+  }
+  showARViewer(bassin: any): void {
+    console.log('User Agent:', navigator.userAgent);
+    console.log('image3DPath:', bassin.image3DPath);
+
+    if (!bassin?.image3DPath) {
+      console.error('Aucun modèle 3D disponible');
+      return;
+    }
+
+    this.isLoading = true;
+    const modelUrl = this.convertGithubUrl(bassin.image3DPath);
+
+    // Détection de plateforme améliorée
+    const isIOS =
+      /iPad|iPhone|iPod/i.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    const isMacOS = /Macintosh/i.test(navigator.userAgent) && !isIOS;
+
+    if (isAndroid) {
+      // Solution pour Android
+      this.launchAndroidAR(modelUrl);
+    } else if (isIOS) {
+      // Solution pour iOS
+      this.launchIOSAR(modelUrl);
+    } else if (isMacOS) {
+      // Solution pour macOS
+      this.launchMacOSAR(modelUrl);
+    } else {
+      // Solution par défaut (QR Code)
+      this.generateQRCode(modelUrl);
+    }
+  }
+
+  // Dans votre composant
+  showMobileView(): void {
+    if (!this.bassin?.image3DPath) {
+      this.toastService.showError('Aucun modèle 3D disponible pour ce produit');
+      return;
+    }
+
+    this.isLoading = true;
+    const modelUrl = this.convertGithubUrl(this.bassin.image3DPath);
+    this.generateQRCode(modelUrl);
+  }
+
+  generateQRCode(modelUrl: string): void {
+    const sceneViewerUrl = `https://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(
+      modelUrl
+    )}&mode=ar_only`;
+
+    QRCode.toDataURL(
+      sceneViewerUrl,
+      {
+        errorCorrectionLevel: 'H',
+        margin: 2,
+        width: 300,
+        color: {
+          dark: '#1e40af', // Couleur bleue foncée
+          light: '#ffffff', // Fond blanc
+        },
+      },
+      (err, url) => {
+        this.isLoading = false;
+        if (err) {
+          console.error('Error generating QR code:', err);
+          this.toastService.showError(
+            'Erreur lors de la génération du QR Code'
+          );
+          return;
+        }
+
+        this.qrCodeImageUrl = url;
+        this.showQRModal = true;
+        this.cdr.detectChanges();
+      }
+    );
+  }
+
+  closeQRModal(): void {
+    this.showQRModal = false;
+    this.qrCodeImageUrl = null;
+  }
+
+  downloadQRCode(): void {
+    if (!this.qrCodeImageUrl) return;
+
+    const link = document.createElement('a');
+    link.href = this.qrCodeImageUrl;
+    link.download = `qr-code-${this.bassin?.nomBassin || 'bassin'}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   }
 }

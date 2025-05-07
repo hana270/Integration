@@ -13,32 +13,27 @@ import { AuthService } from '../authentication/auth.service';
 
 @Injectable()
 export class AuthInterceptor implements HttpInterceptor {
-  constructor(private injector: Injector
-    , private authService :AuthService
-  ) {}
+  constructor(private injector: Injector) {}
 
-  intercept(request: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
-    // Ne pas ajouter le token pour les requêtes de login
-    if (request.url.includes('/login') || request.url.includes('/register')) {
-      return next.handle(request);
-    }
-  
-    const token = this.authService.getToken();
+  intercept(req: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
+    // Lazily get the AuthService to break circular dependency
+    const authService = this.injector.get(AuthService);
+    const token = authService.getToken();
+    
     if (token) {
-      request = request.clone({
-        setHeaders: {
-          Authorization: `Bearer ${token}`
-        }
+      const authReq = req.clone({
+        headers: req.headers.set('Authorization', `Bearer ${token}`)
       });
+      return next.handle(authReq).pipe(
+        catchError((error: HttpErrorResponse) => {
+          if (error.status === 401) {
+            authService.logout();
+          }
+          return throwError(error);
+        })
+      );
     }
-  
-    return next.handle(request).pipe(
-      catchError((error: HttpErrorResponse) => {
-        if (error.status === 401) {
-          this.authService.logout();
-        }
-        return throwError(error);
-      })
-    );
+    
+    return next.handle(req);
   }
 }

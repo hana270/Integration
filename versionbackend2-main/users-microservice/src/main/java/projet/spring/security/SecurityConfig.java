@@ -41,36 +41,24 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http, AuthenticationManager authManager) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
-            //enlève à cause de api gateway
-            //.cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authz -> authz
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers(
                     "/api/users/login", 
                     "/api/users/register", 
-                    "/api/users/verifyEmail/**", 
-                    "/api/users/verify-email/**", 
-                    "/error",
-                    "/api/users/send-installer-invitation", 
-                    "/api/users/register-installer",
+                    "/api/users/verify-email/**",
                     "/api/users/resend-verification",
-                    "/api/users/request-reset-password", 
-                    "/api/users/reset-password", 
+                    "/api/users/request-reset-password",
+                    "/api/users/reset-password",
                     "/api/users/validate-code",
-                    "/api/users/all",
-                    
-                    "/api/users/installateursCommmande",
-                    
-                    "/uploads/**",
-                    "/webjars/**"
-                    
+                    "/error"
                 ).permitAll()
-                .requestMatchers("/users/userProfile", "/uploadProfileImage", "/api/users/username/**").authenticated()
                 .anyRequest().authenticated())
             .addFilter(new JWTAuthenticationFilter(authManager, userService))
             .addFilterBefore(new JWTAuthorizationFilter(), UsernamePasswordAuthenticationFilter.class);
-        	
+        
         return http.build();
     }
+    
 }

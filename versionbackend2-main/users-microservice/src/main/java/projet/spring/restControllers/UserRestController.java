@@ -308,58 +308,63 @@ public class UserRestController {
 
 	@PostMapping("/register")
 	public ResponseEntity<?> register(@RequestBody RegistrationRequest request) {
-		try {
-			logger.info("Tentative d'inscription pour l'email: {}", request.getEmail());
+	    try {
+	        logger.info("Tentative d'inscription pour l'email: {}", request.getEmail());
 
-			// Normaliser l'email avant vérification
-			String normalizedEmail = request.getEmail().toLowerCase().trim();
-			request.setEmail(normalizedEmail);
+	        // Normalize email
+	        String normalizedEmail = request.getEmail().toLowerCase().trim();
+	        request.setEmail(normalizedEmail);
 
-			// Vérifier d'abord si l'email existe
-			if (userRep.findByEmail(normalizedEmail).isPresent()) {
-				logger.warn("Email déjà utilisé: {}", normalizedEmail);
-				return ResponseEntity.status(HttpStatus.CONFLICT)
-						.body(Map.of("error", "EMAIL_ALREADY_EXISTS", "message", "Cet email est déjà utilisé"));
-			}
+	        // Check if email exists
+	        if (userRep.findByEmail(normalizedEmail).isPresent()) {
+	            logger.warn("Email déjà utilisé: {}", normalizedEmail);
+	            return ResponseEntity.status(HttpStatus.CONFLICT)
+	                    .body(Map.of("error", "EMAIL_ALREADY_EXISTS", "message", "Cet email est déjà utilisé"));
+	        }
 
-			// Vérifier ensuite si le nom d'utilisateur existe
-			if (userRep.findByUsername(request.getUsername()).isPresent()) {
-				logger.warn("Nom d'utilisateur déjà utilisé: {}", request.getUsername());
-				return ResponseEntity.status(HttpStatus.CONFLICT).body(
-						Map.of("error", "USERNAME_ALREADY_EXISTS", "message", "Ce nom d'utilisateur est déjà utilisé"));
-			}
+	        // Check if username exists
+	        if (userRep.findByUsername(request.getUsername()).isPresent()) {
+	            logger.warn("Nom d'utilisateur déjà utilisé: {}", request.getUsername());
+	            return ResponseEntity.status(HttpStatus.CONFLICT)
+	                    .body(Map.of("error", "USERNAME_ALREADY_EXISTS", "message", "Ce nom d'utilisateur est déjà utilisé"));
+	        }
 
-			User user = userService.registerUser(request);
+	        // Register user
+	        User user = userService.registerUser(request);
 
-			// Générer le token JWT
-			List<String> roles = user.getRoles().stream().map(Role::getRole).collect(Collectors.toList());
+	        // Generate JWT token
+	        List<String> roles = user.getRoles().stream().map(Role::getRole).collect(Collectors.toList());
 
-			String jwt = JWT.create().withSubject(user.getUsername()).withClaim("userId", user.getUser_id())
-					.withClaim("email", user.getEmail()).withClaim("firstName", user.getFirstName())
-					.withClaim("lastName", user.getLastName()).withClaim("phone", user.getPhone())
-					.withClaim("defaultAddress", user.getDefaultAddress())
-					.withArrayClaim("roles", roles.toArray(new String[0]))
-					.withExpiresAt(new Date(System.currentTimeMillis() + SecParams.EXP_TIME))
-					.sign(Algorithm.HMAC256(SecParams.SECRET));
+	        String jwt = JWT.create()
+	                .withSubject(user.getUsername())
+	                .withClaim("userId", user.getUser_id())
+	                .withClaim("email", user.getEmail())
+	                .withClaim("firstName", user.getFirstName())
+	                .withClaim("lastName", user.getLastName())
+	                .withClaim("phone", user.getPhone())
+	                .withClaim("defaultAddress", user.getDefaultAddress())
+	                .withArrayClaim("roles", roles.toArray(new String[0]))
+	                .withExpiresAt(new Date(System.currentTimeMillis() + SecParams.EXP_TIME))
+	                .sign(Algorithm.HMAC256(SecParams.SECRET));
 
-			HttpHeaders headers = new HttpHeaders();
-			headers.add("Authorization", SecParams.PREFIX + jwt);
-			headers.add("Access-Control-Expose-Headers", "Authorization");
+	        HttpHeaders headers = new HttpHeaders();
+	        headers.add("Authorization", SecParams.PREFIX + jwt);
+	        headers.add("Access-Control-Expose-Headers", "Authorization");
 
-			Map<String, Object> responseBody = new HashMap<>();
-			responseBody.put("user", user);
-			responseBody.put("jwt", SecParams.PREFIX + jwt);
-			responseBody.put("message",
-					"Inscription réussie! Veuillez vérifier votre email pour activer votre compte.");
+	        Map<String, Object> responseBody = new HashMap<>();
+	        responseBody.put("user", user);
+	        responseBody.put("jwt", SecParams.PREFIX + jwt);
+	        responseBody.put("message", "Inscription réussie! Veuillez vérifier votre email pour activer votre compte.");
 
-			logger.info("Inscription réussie pour l'utilisateur: {}", user.getUsername());
-			return ResponseEntity.status(HttpStatus.CREATED).headers(headers).body(responseBody);
+	        logger.info("Inscription réussie pour l'utilisateur: {}", user.getUsername());
+	        return ResponseEntity.status(HttpStatus.CREATED).headers(headers).body(responseBody);
 
-		} catch (Exception e) {
-			logger.error("Erreur lors de l'inscription", e);
-			return ResponseEntity.internalServerError().body(Map.of("error", "SERVER_ERROR", "message",
-					"Une erreur technique est survenue. Veuillez réessayer plus tard."));
-		}
+	    } catch (Exception e) {
+	        logger.error("Erreur lors de l'inscription", e);
+	        return ResponseEntity.internalServerError()
+	                .body(Map.of("error", "SERVER_ERROR", 
+	                      "message", "Une erreur technique est survenue. Veuillez réessayer plus tard."));
+	    }
 	}
 
 	@PostMapping("/send-installer-invitation")

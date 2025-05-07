@@ -129,7 +129,6 @@ export class DetailsBassinComponent implements OnInit {
     }
     return url;
   }
-
   onModelLoad(): void {
     this.isLoading = false; // Masquer le loader après le chargement
   }

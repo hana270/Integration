@@ -20,25 +20,33 @@ const httpOptions = {
 })
 export class BassinService {
   private apiURL: string;
+  private authServiceInstance: AuthService | null = null;
 
-  
   constructor(
     private http: HttpClient,
-    @Inject(forwardRef(() => AuthService)) private authService: AuthService,     private injector: Injector,
+    private injector: Injector,
     private configService: ConfigServiceService
   ) {
     this.apiURL = this.configService.aquatresorApiUrl;
+  }
+
+  private get authService(): AuthService {
+    if (!this.authServiceInstance) {
+      this.authServiceInstance = this.injector.get(AuthService);
+    }
+    return this.authServiceInstance;
   }
 
   getApiUrl(): string {
     return this.apiURL;
   }
 
-  private getAuthService(): AuthService {
-    if (!this.authService) {
-      this.authService = this.injector.get(AuthService);
-    }
-    return this.authService;
+  // Example of a method that might use the AuthService
+  getBassinData() {
+    const token = this.authService.token; // Access the token through the getter
+    // Use the token in your HTTP request headers if needed
+    const headers = token ? new HttpHeaders({ 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }) : httpOptions.headers;
+    return this.http.get(`${this.apiURL}/bassins`, { headers });
   }
 
 
@@ -46,7 +54,7 @@ export class BassinService {
    // consulter un bassin
    consulterBassin(id: number): Observable<Bassin> {
     const url = `${this.apiURL}/getbyid/${id}`;
-    let jwt = this.getAuthService().getToken();
+    let jwt = this.authService.getToken();
     jwt = "Bearer " + jwt;
     let httpHeaders = new HttpHeaders({ "Authorization": jwt });
     return this.http.get<Bassin>(url, { headers: httpHeaders }).pipe(
@@ -88,7 +96,7 @@ existsByNomBassin(nomBassin: string): Observable<boolean> {
 
 getAllBassins(): Observable<Bassin[]> {
   const headers = new HttpHeaders({
-    Authorization: `Bearer ${this.getAuthService().getToken()}`,
+    Authorization: `Bearer ${this.authService.getToken()}`,
   });
   return this.http.get<Bassin[]>(`${this.apiURL}/all`, { headers: headers });
 }
@@ -96,7 +104,7 @@ getAllBassins(): Observable<Bassin[]> {
   // supprimer bassin
   supprimerBassin(id: number): Observable<void> {
     const url = `${this.apiURL}/deletebassin/${id}`;
-    let jwt = this.getAuthService().getToken();
+    let jwt = this.authService.getToken();
     jwt = "Bearer " + jwt;
     let httpHeaders = new HttpHeaders({ "Authorization": jwt });
     return this.http.delete<void>(url, { headers: httpHeaders });
@@ -144,7 +152,7 @@ getAllBassins(): Observable<Bassin[]> {
 
   supprimerImage(id: number): Observable<void> {
     const url = `${this.apiURL}/imagesBassin/delete/${id}`;
-    let jwt = this.getAuthService().getToken();
+    let jwt = this.authService.getToken();
     jwt = "Bearer " + jwt;
     let httpHeaders = new HttpHeaders({ "Authorization": jwt });
     return this.http.delete<void>(url, { headers: httpHeaders });
@@ -192,7 +200,7 @@ getAccessoireImageUrl(path: string): string {
 
   getAllCategories(): Observable<any[]> {
     const headers = new HttpHeaders({
-      Authorization: `Bearer ${this.getAuthService().getToken()}`,
+      Authorization: `Bearer ${this.authService.getToken()}`,
     });
     return this.http.get<any[]>(`${this.apiURL}/categories`, { headers: headers });
   }
@@ -385,7 +393,7 @@ listeBassin(): Observable<Bassin[]> {
 
       archiverBassin(id: number): Observable<Bassin> {
         const headers = new HttpHeaders({
-          'Authorization': `Bearer ${this.getAuthService().getToken()}`
+          'Authorization': `Bearer ${this.authService.getToken()}`
         });
         
         return this.http.get<Bassin>(`${this.apiURL}/getbyid/${id}`, { headers }).pipe(
@@ -403,7 +411,7 @@ listeBassin(): Observable<Bassin[]> {
  // méthode pour mettre à jour le statut d'un bassin
 updateBassinStatus(id: number, newStatus: string): Observable<Bassin> {
   const headers = new HttpHeaders({
-    'Authorization': `Bearer ${this.getAuthService().getToken()}`
+    'Authorization': `Bearer ${this.authService.getToken()}`
   });
   
   return this.http.post<Bassin>(
@@ -419,7 +427,7 @@ canArchiveBassin(bassin: Bassin): boolean {
 
 desarchiverBassin(id: number, nouvelleQuantite: number): Observable<Bassin> {
   const headers = new HttpHeaders({
-    'Authorization': `Bearer ${this.getAuthService().getToken()}`
+    'Authorization': `Bearer ${this.authService.getToken()}`
   });
   
   let params = new HttpParams()
@@ -442,7 +450,7 @@ desarchiverBassin(id: number, nouvelleQuantite: number): Observable<Bassin> {
   // Méthodes utilitaires
   // Méthode pour générer les en-têtes avec le token JWT
   private getHeaders(): HttpHeaders {
-    const token = this.getAuthService().getToken();
+    const token = this.authService.getToken();
     return new HttpHeaders({
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
@@ -476,7 +484,7 @@ desarchiverBassin(id: number, nouvelleQuantite: number): Observable<Bassin> {
 // Liste des bassins avec gestion des promotions
 listeBassinClient(): Observable<Bassin[]> {
   const headers = new HttpHeaders({
-    Authorization: `Bearer ${this.getAuthService().getToken()}`,
+    Authorization: `Bearer ${this.authService.getToken()}`,
   });
   return this.http.get<Bassin[]>(`${this.apiURL}/all`, { headers: headers }).pipe(
     map(bassins => {
@@ -498,7 +506,7 @@ listeBassinClient(): Observable<Bassin[]> {
 listeBassinsAvecPromotions(): Observable<Bassin[]> {
   return this.http.get<any[]>(`${this.apiURL}/promotions/bassins?includePromotions=true`, {
     headers: {
-      Authorization: `Bearer ${this.getAuthService().getToken()}`,
+      Authorization: `Bearer ${this.authService.getToken()}`,
     }
   }).pipe(
     map(data => {
@@ -552,7 +560,7 @@ listeBassinsAvecPromotions(): Observable<Bassin[]> {
   // Méthodes pour les commandes
   mettreSurCommande(id: number, dureeJours: number): Observable<Bassin> {
     const headers = new HttpHeaders({
-        'Authorization': `Bearer ${this.getAuthService().getToken()}`
+        'Authorization': `Bearer ${this.authService.getToken()}`
     });
     
     return this.http.post<Bassin>(

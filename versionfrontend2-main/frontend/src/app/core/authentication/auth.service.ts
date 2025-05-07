@@ -1164,28 +1164,33 @@ export class AuthService {
     this.router.navigate(['/login']);
   }
 
-   //méthode installateur commande 
-   getInstallersCommande(): Observable<any[]> {
+  //méthode installateur commande
+  getInstallersCommande(): Observable<any[]> {
     const token = this.getToken();
     const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
-    return this.http.get<User[]>(`${this.configService.usersApiUrl}/installateursCommmande`, { headers }).pipe(
-      map(users => users.map(user => ({
-        id: user.user_id,
-        userId: user.user_id, // Add this to match backend
-        username: user.username,
-        email: user.email,
-        profileImage: user.profileImage 
-          ? `${this.configService.apiUrl}/uploads/${user.profileImage}` 
-          : 'assets/img/installateur/inconnueProfilephoto.jpg',
-        prenom: 'Non spécifié',
-        nom: 'Non spécifié',
-        specialite: 'Non spécifiée'
-      }))),
-      catchError((error) => {
-        console.error('Error fetching installers:', error);
-        return of([]);
+    return this.http
+      .get<User[]>(`${this.configService.usersApiUrl}/installateursCommmande`, {
+        headers,
       })
-    );
-}
- 
+      .pipe(
+        map((users) =>
+          users.map((user) => ({
+            id: user.user_id,
+            userId: user.user_id, // Add this to match backend
+            username: user.username,
+            email: user.email,
+            profileImage: user.profileImage
+              ? `${this.configService.apiUrl}/uploads/${user.profileImage}`
+              : 'assets/img/installateur/inconnueProfilephoto.jpg',
+            prenom: 'Non spécifié',
+            nom: 'Non spécifié',
+            specialite: 'Non spécifiée',
+          }))
+        ),
+        catchError((error) => {
+          console.error('Error fetching installers:', error);
+          return of([]);
+        })
+      );
+  }
 }

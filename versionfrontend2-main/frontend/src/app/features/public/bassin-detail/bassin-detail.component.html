@@ -552,6 +552,10 @@
                 </button>
 
                 <!-- Reste du code inchangé -->
+              
+              
+              
+              
               </div>
             </div>
             <div *ngIf="isLoading" class="loading-overlay">
@@ -562,6 +566,71 @@
           </div>
         </div>
       </div>
+      
+              
+              
+              
+              
+              
+              
+              
+              
+              
+              
+              <!-- 3D Viewer Section -->
+              <div class="model-3d-container">
+                <!-- Loader overlay -->
+                <div *ngIf="isLoading" class="loader-overlay">
+                    <div class="loader"></div>
+                </div>
+
+                <!-- Model Viewer -->
+                <model-viewer [src]="convertGithubUrl(bassin!.image3DPath)" alt="3D Model" ar camera-controls auto-rotate
+                    shadow-intensity="1" (load)="onModelLoad()" (error)="onModelError()" #modelViewer>
+                </model-viewer>
+            </div>
+
+          
+                    
+        <!-- Bouton pour afficher la vue mobile -->
+<button (click)="showMobileView()" class="btn-ar-viewer">
+  <i class="fas fa-mobile-alt"></i> Voir en Mobile
+</button>
+
+<!-- Modale QR Code -->
+<div *ngIf="showQRModal" class="qr-modal-overlay" (click)="closeQRModal()">
+  <div class="qr-modal-content" (click)="$event.stopPropagation()">
+    <button class="qr-modal-close" (click)="closeQRModal()">
+      <i class="fas fa-times"></i>
+    </button>
+    
+    <h3 class="qr-modal-title">Scanner pour voir en AR</h3>
+    
+    <div class="qr-code-container">
+      <img *ngIf="qrCodeImageUrl" [src]="qrCodeImageUrl" alt="QR Code" class="qr-code-image">
+      <div *ngIf="!qrCodeImageUrl" class="qr-code-placeholder">
+        <i class="fas fa-spinner fa-spin"></i>
+      </div>
+    </div>
+    
+    <p class="qr-modal-instructions">
+      Scannez ce QR Code avec votre appareil mobile pour voir le modèle en réalité augmentée
+    </p>
+    
+    <div class="qr-modal-actions">
+      <button (click)="downloadQRCode()" class="btn-download-qr">
+        <i class="fas fa-download"></i> Télécharger
+      </button>
+      <button (click)="closeQRModal()" class="btn-close-modal">
+        Fermer
+      </button>
+    </div>
+  </div>
+</div>
+          
+    
+              
+              
     </section>
 
     <!-- Section des avis -->

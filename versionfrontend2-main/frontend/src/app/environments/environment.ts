@@ -4,6 +4,6 @@ export const environment = {
     aquatresorBasePath: '/aquatresor/api', // Base path for aquatresor service
     notificationsBasePath: '/notifications',
     ordersBasePath: '/api/panier',
-    usersBasePath: '/users',
+    usersBasePath: 'api/users',
     installationsBasePath: '/api/installations',
   }
